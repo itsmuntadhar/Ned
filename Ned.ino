@@ -6,9 +6,7 @@ March 19, 2017:
 March 20, 2017:
 -Fixing a bug caused by changing the RTC Lib.
 -Changing Time calculation from minutes to military.
-
-TODO:: 
-Implement Auto/Manual Control modes for development, debugging and presenting.
+-Implementing Manual Mode in DEBUG mode.
 */
 
 #include <DS1302.h>
@@ -19,6 +17,7 @@ const int kIoPin   = 11;  // Input/Output
 const int kCePin   = 12;  // Chip Enable
 
 #define TIMEZONE  3         //Time zone in hours
+
 #define LATITUDE  44.361343 //These are for Najaf, Iq. Yours can be obtained easily from any maps provider like Bing or Google.
 #define LONGITUDE 32.011302
 
@@ -31,7 +30,7 @@ Sunrise mySunrise(LONGITUDE, LATITUDE, TIMEZONE); //Instance of the library.
 #ifdef DEBUG 
 char buffer[80]; //We need it only to print the output for debugging.
 #endif
-bool isItDayTime = false; //The name says everything :3
+bool isItDayTime = false, isItAutoMode = true; //The name says everything :3
 
 DS1302 rtc(kCePin, kIoPin, kSclkPin); //RTC Instance.
 
@@ -51,35 +50,39 @@ void setup()
   #endif
   timer = 0; //Init.
   mySunrise.Actual(); //Setting calculation method. Acutal, Civil, Astro.
-  CalculateSunTimes(); //Call the function for the first time.
+  CalculateSunTimes(); //Call the function for the first rtcTime
 }
 
 void loop()
 {
+  isItAutoMode = digitalRead(13) == HIGH;
   int threshold = 60000; //In final product, the board will check and write every minute.
   #ifdef DEBUG
   threshold = 1000; //Under development, the board will check and write every second.
+  //Serial.print("Is it automode? ");
+  //Serial.println(isItAutoMode);
   #endif
   if (millis() - timer >= threshold)
   {
     timer = millis(); //Keep timer up with millis().
-    CalculateSunTimes(); //Do IT!
+    if (isItAutoMode) CalculateSunTimes(); //Do IT!
+    else MeasureTime();
   }
 }
 
 void CalculateSunTimes()
 {
-    Time time = rtc.time();
+    Time rtcTime = rtc.time();
     int t; //An integer used to see if there is a result from Sunrise Lib.
     byte Times[4] = { 0, 0, 0, 0 }; //0: Sunrise hour, 1: minute, 2: Sunset hour, 3: minute.
-    t = mySunrise.Rise(time.mon, time.date); //Attempt to calculate sunrise time.
+    t = mySunrise.Rise(rtcTime.mon, rtcTime.date); //Attempt to calculate sunrise time.
     if (t >= 0) //We have it :)
     {
       Times[0] = mySunrise.Hour(); //Just store the data in our array.
       Times[1] = mySunrise.Minute();
     }
     else { /*Either Pole*/ }
-    t = mySunrise.Set(time.mon, time.date); //Attempt to calculate sunset time.
+    t = mySunrise.Set(rtcTime.mon, rtcTime.date); //Attempt to calculate sunset time.
     if (t >= 0) //We have it :)
     {
       Times[2] = mySunrise.Hour();
@@ -87,7 +90,7 @@ void CalculateSunTimes()
     }
     else { /*Either Pole*/ }
 
-    int currentClock = time.min + (time.hr * 100); //converting it into "Militray" way of timing makes easier to compare.
+    int currentClock = rtcTime.min + (rtcTime.hr * 100); //converting it into "Militray" way of timing makes easier to compare.
     isItDayTime = currentClock > (Times[0] * 100) + Times[1] && currentClock < (Times[2] * 100) + Times[3];
     /*
     i.e. 
@@ -95,13 +98,26 @@ void CalculateSunTimes()
     */
     WriteOutput(!isItDayTime); //Make changes if needed.
     #ifdef DEBUG
-    sprintf(buffer, "Datetime: %02d/%02d/%d %02d:%02d:%02d\n", time.date, time.mon, time.yr, time.hr, time.min, time.sec); //Print the datetime for debugging.
+    sprintf(buffer, "Datetime: %02d/%02d/%d %02d:%02d:%02d\n", rtcTime.date, rtcTime.mon, rtcTime.yr, rtcTime.hr, rtcTime.min, rtcTime.sec); //Print the datetime for debugging.
     Serial.print(buffer);
     sprintf(buffer, "Datetime minutes: %d, Sunrise minutes: %d, Sunset minutes %d\n", currentClock, (Times[0] * 100) + Times[1], (Times[2] * 100) + Times[3]); //Print the times for debugging.
     Serial.print(buffer);
-    sprintf(buffer, "As of %02d/%02d, approximately, sun rises at %02d:%02d and sets at %02d:%02d\n", time.date, time.mon, Times[0], Times[1], Times[2], Times[3]); //Print the times for debugging.
+    sprintf(buffer, "As of %02d/%02d, approximately, sun rises at %02d:%02d and sets at %02d:%02d\n", rtcTime.date, rtcTime.mon, Times[0], Times[1], Times[2], Times[3]); //Print the times for debugging.
     Serial.print(buffer);
     #endif
+}
+
+void MeasureTime()
+{
+  #ifdef DEBUG
+  int reading = analogRead(5);
+  sprintf(buffer, "Reading from pot: %04d\n", reading);
+  Serial.print(buffer);
+  isItDayTime = analogRead(5) > 511;
+  #else
+  isItDayTime = analogRead(5) > 511;
+  #endif
+  WriteOutput(!isItDayTime); //Make changes if needed.
 }
 
 void WriteOutput(int level)
