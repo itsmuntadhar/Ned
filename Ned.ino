@@ -1,7 +1,10 @@
 /*
 This code below was written by Muntadhar Haydar (@mrmhk97).
 As of March 18, 2017.
-Last Modification was on March 19, 2017.
+March 19, 2017:
+-Changing RTC Library.
+March 20, 2017:
+-Fixing a bug caused by changing the RTC Lib.
 
 TODO:: 
 Implement Auto/Manual Control modes for development, debugging and presenting.
@@ -19,7 +22,7 @@ const int kCePin   = 12;  // Chip Enable
 #define LONGITUDE 32.011302
 
 //Comment the next definition unless debugging or developing.
-//#define DEBUG
+#define DEBUG
 
 unsigned long timer; //TODO:: Add something!
 int datetime[6]; //An array to store the Datetime.
@@ -66,6 +69,10 @@ void loop()
 void CalculateSunTimes()
 {
     Time time = rtc.time();
+    #ifdef DEBUG
+    sprintf(buffer, "Datetime: %02d/%02d/%d %02d:%02d:%02d\n", time.date, time.mon, time.yr, time.hr, time.min, time.sec); //Print the times for debugging.
+    Serial.print(buffer);
+    #endif
     int t; //An integer used to see if there is a result from Sunrise Lib.
     byte Times[4] = { 0, 0, 0, 0 }; //0: Sunrise hour, 1: minute, 2: Sunset hour, 3: minute.
     t = mySunrise.Rise(time.mon, time.date); //Attempt to calculate sunrise time.
@@ -83,14 +90,16 @@ void CalculateSunTimes()
     }
     else { /*Either Pole*/ }
 
-    int currentMinutes = datetime[4] + (datetime[3] * 60); //converting it into minutes makes easier to compare.
-    isItDayTime = currentMinutes > (Times[0] * 60) + Times[1] && currentMinutes < (Times[2] * 60) + Times[3];
+    int currentClock = time.min + (time.hr * 100); //converting it into minutes makes easier to compare.
+    isItDayTime = currentClock > (Times[0] * 100) + Times[1] && currentClock < (Times[2] * 100) + Times[3];
     /*
     i.e. 
-    if current minutes, aka time as of now, is greater than Sunrise time and lesser than Sunset time then it's Day time, and night if it is not.
+    if currentClock, aka time as of now, is greater than Sunrise time AND lesser than Sunset time then it's Day time, and night if it is not.
     */
     WriteOutput(!isItDayTime);
     #ifdef DEBUG
+    sprintf(buffer, "Datetime minutes: %d, Sunrise minutes: %d, Sunset minutes %d\n", currentClock, (Times[0] * 100) + Times[1], (Times[2] * 100) + Times[3]); //Print the times for debugging.
+    Serial.print(buffer);
     sprintf(buffer, "As of %02d/%02d, approximately, sun rises at %02d:%02d and sets at %02d:%02d\n", time.date, time.mon, Times[0], Times[1], Times[2], Times[3]); //Print the times for debugging.
     Serial.print(buffer);
     #endif
@@ -108,4 +117,3 @@ void WriteOutput(int level)
     i += i == 9 ? 4 : 1;
   }
 }
-
