@@ -5,6 +5,7 @@ March 19, 2017:
 -Changing RTC Library.
 March 20, 2017:
 -Fixing a bug caused by changing the RTC Lib.
+-Changing Time calculation from minutes to military.
 
 TODO:: 
 Implement Auto/Manual Control modes for development, debugging and presenting.
@@ -28,7 +29,7 @@ unsigned long timer; //TODO:: Add something!
 int datetime[6]; //An array to store the Datetime.
 Sunrise mySunrise(LONGITUDE, LATITUDE, TIMEZONE); //Instance of the library.    
 #ifdef DEBUG 
-char buffer[80]; //We need it only to print the times for debugging.
+char buffer[80]; //We need it only to print the output for debugging.
 #endif
 bool isItDayTime = false; //The name says everything :3
 
@@ -49,15 +50,15 @@ void setup()
   pinMode(13, OUTPUT);
   #endif
   timer = 0; //Init.
-  mySunrise.Actual(); //Setting calculation method. Acutal, Civil, Astro
+  mySunrise.Actual(); //Setting calculation method. Acutal, Civil, Astro.
   CalculateSunTimes(); //Call the function for the first time.
 }
 
 void loop()
 {
-  int threshold = 60000; //In final product, the board will check and Write every minute.
+  int threshold = 60000; //In final product, the board will check and write every minute.
   #ifdef DEBUG
-  threshold = 1000; //Under development, the board will check and Write every second.
+  threshold = 1000; //Under development, the board will check and write every second.
   #endif
   if (millis() - timer >= threshold)
   {
@@ -69,10 +70,6 @@ void loop()
 void CalculateSunTimes()
 {
     Time time = rtc.time();
-    #ifdef DEBUG
-    sprintf(buffer, "Datetime: %02d/%02d/%d %02d:%02d:%02d\n", time.date, time.mon, time.yr, time.hr, time.min, time.sec); //Print the times for debugging.
-    Serial.print(buffer);
-    #endif
     int t; //An integer used to see if there is a result from Sunrise Lib.
     byte Times[4] = { 0, 0, 0, 0 }; //0: Sunrise hour, 1: minute, 2: Sunset hour, 3: minute.
     t = mySunrise.Rise(time.mon, time.date); //Attempt to calculate sunrise time.
@@ -90,14 +87,16 @@ void CalculateSunTimes()
     }
     else { /*Either Pole*/ }
 
-    int currentClock = time.min + (time.hr * 100); //converting it into minutes makes easier to compare.
+    int currentClock = time.min + (time.hr * 100); //converting it into "Militray" way of timing makes easier to compare.
     isItDayTime = currentClock > (Times[0] * 100) + Times[1] && currentClock < (Times[2] * 100) + Times[3];
     /*
     i.e. 
     if currentClock, aka time as of now, is greater than Sunrise time AND lesser than Sunset time then it's Day time, and night if it is not.
     */
-    WriteOutput(!isItDayTime);
+    WriteOutput(!isItDayTime); //Make changes if needed.
     #ifdef DEBUG
+    sprintf(buffer, "Datetime: %02d/%02d/%d %02d:%02d:%02d\n", time.date, time.mon, time.yr, time.hr, time.min, time.sec); //Print the datetime for debugging.
+    Serial.print(buffer);
     sprintf(buffer, "Datetime minutes: %d, Sunrise minutes: %d, Sunset minutes %d\n", currentClock, (Times[0] * 100) + Times[1], (Times[2] * 100) + Times[3]); //Print the times for debugging.
     Serial.print(buffer);
     sprintf(buffer, "As of %02d/%02d, approximately, sun rises at %02d:%02d and sets at %02d:%02d\n", time.date, time.mon, Times[0], Times[1], Times[2], Times[3]); //Print the times for debugging.
@@ -107,13 +106,13 @@ void CalculateSunTimes()
 
 void WriteOutput(int level)
 {
-  int i = 2;
+  int i = 2; //First pin to start with.
   while (i < 14)
   {
 #ifdef DEBUG
-    if (i == 13) break;
+    if (i == 13) break; //If we are debugging we expect pin 13 as an output.
 #endif
     digitalWrite(i, level);
-    i += i == 9 ? 4 : 1;
+    i += i == 9 ? 4 : 1; //Skip the RTC Pins (10, 11, 12).
   }
 }
