@@ -7,6 +7,9 @@ March 20, 2017:
 -Fixing a bug caused by changing the RTC Lib.
 -Changing Time calculation from minutes to military.
 -Implementing Manual Mode in DEBUG mode.
+March 23, 2017:
+-Fixing a bug regarding checking "isAutoMode".
+-Improving code.
 */
 
 #include <DS1302.h>
@@ -55,12 +58,10 @@ void setup()
 
 void loop()
 {
-  isItAutoMode = digitalRead(13) == HIGH;
   int threshold = 60000; //In final product, the board will check and write every minute.
   #ifdef DEBUG
+  isItAutoMode = digitalRead(13) == HIGH;
   threshold = 1000; //Under development, the board will check and write every second.
-  //Serial.print("Is it automode? ");
-  //Serial.println(isItAutoMode);
   #endif
   if (millis() - timer >= threshold)
   {
@@ -109,14 +110,11 @@ void CalculateSunTimes()
 
 void MeasureTime()
 {
-  #ifdef DEBUG
   int reading = analogRead(5);
+  Serial.println("Manual Mode");
   sprintf(buffer, "Reading from pot: %04d\n", reading);
   Serial.print(buffer);
   isItDayTime = analogRead(5) > 511;
-  #else
-  isItDayTime = analogRead(5) > 511;
-  #endif
   WriteOutput(!isItDayTime); //Make changes if needed.
 }
 
