@@ -67,7 +67,9 @@ void loop()
   {
     timer = millis(); //Keep timer up with millis().
     if (isItAutoMode) CalculateSunTimes(); //Do IT!
+    #ifdef DEBUG
     else MeasureTime();
+    #endif
   }
 }
 
@@ -108,6 +110,7 @@ void CalculateSunTimes()
     #endif
 }
 
+#ifdef DEBUG
 void MeasureTime()
 {
   int reading = analogRead(5);
@@ -117,6 +120,7 @@ void MeasureTime()
   isItDayTime = analogRead(5) > 511;
   WriteOutput(!isItDayTime); //Make changes if needed.
 }
+#endif
 
 void WriteOutput(int level)
 {
