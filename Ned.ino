@@ -12,8 +12,8 @@ March 23, 2017:
 -Improving code.
 */
 
-#include <DS1302.h>
-#include <Sunrise.h>
+#include "DS1302.h"
+#include "Sunrise.h"
 
 const int kSclkPin = 10;  // Serial Clock
 const int kIoPin   = 11;  // Input/Output
